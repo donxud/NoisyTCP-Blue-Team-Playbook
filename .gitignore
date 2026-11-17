@@ -1,0 +1,11 @@
+# Never commit real inventories, logs, crash dumps or exports to this public repo.
+*.real.csv
+inventory/
+private/
+vmcore*
+*.log
+.env
+
+__pycache__/
+*.retry
+.DS_Store
