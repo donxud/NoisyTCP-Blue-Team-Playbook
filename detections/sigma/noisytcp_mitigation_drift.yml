@@ -1,0 +1,37 @@
+title: NoisyTCP Mitigation Changed - SYN Cookies or Receive Queues Modified
+id: a8e4c1f7-5d02-4b39-8e6a-1f7b3c9d0e45
+status: experimental
+description: |
+  Detects commands that change the NoisyTCP (CVE-2026-99288) workarounds:
+  net.ipv4.tcp_syncookies, NIC channel counts (ethtool -L), RPS masks or
+  rps_sock_flow_entries. Changes are expected during approved mitigation and
+  rollback; anything outside a change ticket can silently re-open exposure.
+  Requires auditd EXECVE logging.
+references:
+  - https://tuxcare.com/blog/noisytcp-cve/
+author: Dong Xu
+date: 2026-11-17
+tags:
+  - attack.defense_evasion
+  - attack.t1562
+  - cve.2026-99288
+logsource:
+  product: linux
+  service: auditd
+detection:
+  sysctl:
+    type: EXECVE
+    a0: sysctl
+  sysctl_keys:
+    - 'tcp_syncookies'
+    - 'rps_sock_flow_entries'
+  ethtool:
+    type: EXECVE
+    a0: ethtool
+    a1:
+      - '-L'
+      - '--set-channels'
+  condition: (sysctl and sysctl_keys) or ethtool
+falsepositives:
+  - Approved mitigation, rollback or NIC tuning (match against change tickets)
+level: medium

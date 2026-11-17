@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" font-family="Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="NoisyTCP crash chain and where each defense breaks it">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker>
+  </defs>
+  <rect width="1200" height="470" fill="#ffffff"/>
+  <text x="600" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2328">NoisyTCP (CVE-2026-99288): every link must hold for the host to crash, so break any one</text>
+  <text x="600" y="60" text-anchor="middle" font-size="13" fill="#57606a">Conceptual view of the published root cause. No exploit details.</text>
+
+  <g stroke="#57606a" stroke-width="1.5" fill="none">
+    <path d="M190 160H208" marker-end="url(#a)"/>
+    <path d="M388 160H406" marker-end="url(#a)"/>
+    <path d="M586 160H604" marker-end="url(#a)"/>
+    <path d="M784 160H802" marker-end="url(#a)"/>
+    <path d="M982 160H1000" marker-end="url(#a)"/>
+  </g>
+
+  <g font-size="12" fill="#1f2328" text-anchor="middle">
+    <rect x="20" y="100" width="170" height="120" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.2"/>
+    <text x="105" y="126" font-size="13" font-weight="700">1. Reachable port</text>
+    <text x="105" y="150">Attacker reaches an</text>
+    <text x="105" y="168">open TCP listener</text>
+    <text x="105" y="186">(SSH, Nginx, Apache),</text>
+    <text x="105" y="204">no login needed</text>
+
+    <rect x="218" y="100" width="170" height="120" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.2"/>
+    <text x="303" y="126" font-size="13" font-weight="700">2. SYN cookies</text>
+    <text x="303" y="150">SYN backlog overflows,</text>
+    <text x="303" y="168">kernel falls back to</text>
+    <text x="303" y="186">SYN cookies (default</text>
+    <text x="303" y="204">tcp_syncookies=1)</text>
+
+    <rect x="416" y="100" width="170" height="120" rx="10" fill="#f6f8fa" stroke="#57606a" stroke-width="1.2"/>
+    <text x="501" y="126" font-size="13" font-weight="700">3. Parallel receive</text>
+    <text x="501" y="150">Packets for one flow</text>
+    <text x="501" y="168">handled on several</text>
+    <text x="501" y="186">CPUs (multiple RX</text>
+    <text x="501" y="204">queues or RPS)</text>
+
+    <rect x="614" y="100" width="170" height="120" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.2"/>
+    <text x="699" y="126" font-size="13" font-weight="700">4. Lookup race</text>
+    <text x="699" y="150">Lockless established-</text>
+    <text x="699" y="168">socket lookup pins a</text>
+    <text x="699" y="186">cookie socket that was</text>
+    <text x="699" y="204">never in the hash table</text>
+
+    <rect x="812" y="100" width="170" height="120" rx="10" fill="#fff8c5" stroke="#9a6700" stroke-width="1.2"/>
+    <text x="897" y="126" font-size="13" font-weight="700">5. NULL dereference</text>
+    <text x="897" y="150">Receive path reads a</text>
+    <text x="897" y="168">NULL listener pointer</text>
+    <text x="897" y="186">in tcp_v4_rcv(), in</text>
+    <text x="897" y="204">interrupt context</text>
+
+    <rect x="1010" y="100" width="170" height="120" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="2"/>
+    <text x="1095" y="126" font-size="13" font-weight="700">6. Kernel panic</text>
+    <text x="1095" y="150">Whole host goes down,</text>
+    <text x="1095" y="168">including every</text>
+    <text x="1095" y="186">container on it</text>
+    <text x="1095" y="204">(denial of service)</text>
+  </g>
+
+  <!-- breakers -->
+  <g stroke="#1a7f37" stroke-width="1.5" fill="none" stroke-dasharray="5 4">
+    <path d="M105 290V226" marker-end="url(#g)"/>
+    <path d="M303 290V226" marker-end="url(#g)"/>
+    <path d="M501 290V226" marker-end="url(#g)"/>
+    <path d="M699 290V226" marker-end="url(#g)"/>
+  </g>
+  <g font-size="12" fill="#1f2328" text-anchor="middle">
+    <rect x="20" y="290" width="170" height="100" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+    <text x="105" y="314" font-size="13" font-weight="700">Edge controls</text>
+    <text x="105" y="336">Close needless ports;</text>
+    <text x="105" y="354">firewall SYN-flood</text>
+    <text x="105" y="372">protection reduces risk</text>
+
+    <rect x="218" y="290" width="170" height="100" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+    <text x="303" y="314" font-size="13" font-weight="700">Workaround 1</text>
+    <text x="303" y="336">tcp_syncookies=0</text>
+    <text x="303" y="354">per network namespace</text>
+    <text x="303" y="372">(loses SYN-flood defense)</text>
+
+    <rect x="416" y="290" width="170" height="100" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+    <text x="501" y="314" font-size="13" font-weight="700">Workaround 2</text>
+    <text x="501" y="336">One RX queue,</text>
+    <text x="501" y="354">RPS/RFS off</text>
+    <text x="501" y="372">(costs throughput)</text>
+
+    <rect x="614" y="290" width="170" height="100" rx="10" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+    <text x="699" y="314" font-size="13" font-weight="700">The fix</text>
+    <text x="699" y="336">Patched kernel with</text>
+    <text x="699" y="354">4e2b3ef19e0e (+ 5b5d8f</text>
+    <text x="699" y="372">351dd9 on arm64/POWER)</text>
+
+    <rect x="812" y="290" width="368" height="100" rx="10" fill="#ffffff" stroke="#57606a" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <text x="996" y="314" font-size="13" font-weight="700">Detect (SIEM)</text>
+    <text x="996" y="336">Precursor: "Possible SYN flooding on port"</text>
+    <text x="996" y="354">Crash: oops in tcp_v4_rcv, "Fatal exception</text>
+    <text x="996" y="372">in interrupt"; unexpected reboots</text>
+  </g>
+  <text x="600" y="440" text-anchor="middle" font-size="12.5" fill="#57606a">Workarounds are stopgaps: they remove a precondition but do not fix the lookup. Only the patched kernel, booted, closes the bug.</text>
+</svg>

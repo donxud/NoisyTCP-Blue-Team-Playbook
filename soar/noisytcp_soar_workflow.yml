@@ -1,0 +1,107 @@
+# NoisyTCP (CVE-2026-99288) SOAR workflow - vendor-neutral definition
+# Maps directly to Tines stories, Sentinel playbooks (Logic Apps), Splunk SOAR
+# or Cortex XSOAR. Each step lists inputs, the action, and the outputs the next
+# step uses. Every change to production goes through an approval gate.
+
+name: noisytcp-response
+version: 1.0
+cve: CVE-2026-99288
+
+triggers:
+  - id: t_oops
+    source: siem
+    rule: "Kernel oops in tcp_v4_rcv"            # detections/*/Rule 1
+    default_priority: P1
+  - id: t_synflood
+    source: siem
+    rule: "SYN backlog overflow precursor"       # Rule 2
+    default_priority: P2
+  - id: t_reboot
+    source: siem
+    rule: "Unexpected reboot / heartbeat gap"    # Rule 3
+    default_priority: P3
+  - id: t_drift
+    source: siem
+    rule: "NoisyTCP mitigation drift"
+    default_priority: P3
+  - id: t_scan
+    source: vulnerability_scanner
+    finding: CVE-2026-99288
+    default_priority: P3
+
+steps:
+  - id: dedupe
+    action: group alerts by host over 60 minutes; one case per host
+    output: case_id, host, signals[]
+
+  - id: enrich_asset
+    action: look up host in asset inventory / CMDB
+    output: owner, criticality, environment, internet_facing
+
+  - id: enrich_exposure
+    action: run ansible/noisytcp.yml in check mode (read-only) against host
+    output: kernel, fix_logged, listeners, multiqueue, syncookies, status
+
+  - id: enrich_edge
+    action: query firewall for inbound rules / NAT to host listener ports
+    output: reachable_from_internet, exposed_ports
+
+  - id: enrich_source
+    when: "'t_synflood' in signals"
+    action: top source IPs from firewall / NetFlow for the alert window; reputation lookup
+    output: sources[], reputation
+
+  - id: prioritize
+    rules:
+      - if: "'t_oops' in signals or (status in ['EXPOSED','UNKNOWN'] and 't_synflood' in signals)"
+        priority: P1
+      - if: "status in ['EXPOSED','UNKNOWN'] and reachable_from_internet"
+        priority: P2
+      - if: "status == 'FIXED'"
+        priority: close_as_benign_or_unrelated
+      - else:
+        priority: P3
+
+  - id: ticket
+    action: create or update ticket for owner with all enrichment and SLA from policy/
+    output: ticket_id
+
+  - id: notify
+    when: "priority == 'P1'"
+    action: page on-call through a channel independent of the affected hosts
+
+  - id: approve_mitigation
+    when: "priority in ['P1','P2'] and status in ['EXPOSED','UNKNOWN']"
+    type: human_approval
+    approvers: [service_owner, security_on_call]
+    question: "Apply NoisyTCP workaround (syncookies_off or single_queue) to {host}?"
+    output: approved, workaround
+
+  - id: apply_mitigation
+    when: approved
+    action: run ansible/noisytcp.yml -e noisytcp_mitigation={workaround} --limit {host}
+    rollback: run ansible/noisytcp.yml -e noisytcp_mitigation=rollback --limit {host}
+
+  - id: approve_block
+    when: "'t_synflood' in signals and reputation == 'malicious'"
+    type: human_approval
+    approvers: [security_on_call]
+    question: "Block {sources} at the edge for 24 h?"
+
+  - id: block_source
+    when: approve_block.approved
+    action: add sources to firewall dynamic block list with 24 h expiry
+
+  - id: preserve_evidence
+    when: "'t_oops' in signals"
+    action: request kdump vmcore / pstore / console log collection; attach to case
+
+  - id: verify
+    action: re-run exposure check; attach result; set ticket state
+    close_when: "status == 'FIXED' (patched kernel booted)"
+
+metrics:
+  - time_to_enrich
+  - time_to_mitigate (approval to change)
+  - hosts_by_status (FIXED / MITIGATED / EXPOSED / UNKNOWN / NOT_EXPOSED)
+  - false_positive_rate per rule

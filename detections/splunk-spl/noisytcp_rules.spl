@@ -1,0 +1,24 @@
+`comment("NoisyTCP (CVE-2026-99288) searches for Splunk. Adjust index and sourcetype to your environment (linux_messages_syslog, syslog, journald).")`
+
+`comment("Rule 1 - Kernel oops in the TCP receive path. High. Schedule every 5 min over the last 10 min.")`
+index=linux sourcetype IN (syslog, linux_messages_syslog, journald) ("tcp_v4_rcv" OR "tcp_v6_rcv" OR "NULL pointer dereference" OR "Fatal exception in interrupt" OR "Oops:")
+| stats values(_raw) AS lines min(_time) AS first_seen BY host
+| where match(mvjoin(lines," "), "tcp_v[46]_rcv") AND match(mvjoin(lines," "), "NULL pointer|Oops:|Fatal exception")
+| eval cve="CVE-2026-99288", signal="kernel_oops_tcp_rcv"
+
+`comment("Rule 2 - SYN backlog overflow precursor. Medium, High if host is unpatched (lookup noisytcp_status.csv from the check script).")`
+index=linux "Possible SYN flooding on port"
+| rex "on port (?<port>\d+)"
+| stats count AS events values(port) AS ports min(_time) AS first_seen BY host
+| lookup noisytcp_status.csv host OUTPUT status
+| eval severity=if(status IN ("EXPOSED","UNKNOWN"), "high", "medium"), cve="CVE-2026-99288"
+
+`comment("Rule 3 - Mitigation drift from auditd EXECVE records. Medium.")`
+index=linux sourcetype=linux_audit type=EXECVE ((a0="sysctl" (tcp_syncookies OR rps_sock_flow_entries)) OR (a0="ethtool" a1 IN ("-L","--set-channels")))
+| table _time host auid a0 a1 a2 a3
+| eval cve="CVE-2026-99288", signal="mitigation_drift"
+
+`comment("Rule 4 - Unexpected reboot: new boot seen without a matching change window.")`
+index=linux ("Linux version" OR "Command line:") sourcetype IN (syslog, linux_messages_syslog, journald)
+| stats min(_time) AS boot_time BY host
+| eval cve="CVE-2026-99288", signal="host_boot"

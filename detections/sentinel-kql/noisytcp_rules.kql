@@ -1,0 +1,56 @@
+// NoisyTCP (CVE-2026-99288) detections for Microsoft Sentinel
+// Table: Syslog (via Azure Monitor Agent, facility kern). Heartbeat for reboots.
+// Each block is a separate analytics rule. Suggested schedule in comments.
+
+// ---------------------------------------------------------------------------
+// Rule 1 - Kernel oops in the TCP receive path (crash signature)   [High]
+// Run every 5 min, look back 10 min. Entity: Computer.
+// ---------------------------------------------------------------------------
+Syslog
+| where TimeGenerated > ago(10m)
+| where Facility == "kern"
+| where SyslogMessage has_any ("BUG: kernel NULL pointer dereference", "Oops:", "Fatal exception in interrupt")
+    or SyslogMessage has_any ("tcp_v4_rcv", "tcp_v6_rcv")
+| summarize Lines = make_list(SyslogMessage, 20), FirstSeen = min(TimeGenerated)
+    by Computer, HostIP
+| where Lines has_any ("tcp_v4_rcv", "tcp_v6_rcv")
+    and Lines has_any ("NULL pointer", "Oops:", "Fatal exception")
+| extend CVE = "CVE-2026-99288", Signal = "kernel_oops_tcp_rcv"
+
+// ---------------------------------------------------------------------------
+// Rule 2 - SYN backlog overflow (precursor of the trigger path)    [Medium]
+// Run every 15 min, look back 15 min. Raise to High when the host is in the
+// NoisyTCP_Unpatched watchlist (fed by tools/noisytcp_check.sh results).
+// ---------------------------------------------------------------------------
+let unpatched = _GetWatchlist('NoisyTCP_Unpatched') | project Computer = tostring(SearchKey);
+Syslog
+| where TimeGenerated > ago(15m)
+| where Facility == "kern" and SyslogMessage has "Possible SYN flooding on port"
+| extend Port = toint(extract(@"on port (\d+)", 1, SyslogMessage))
+| summarize Events = count(), Ports = make_set(Port, 10), FirstSeen = min(TimeGenerated)
+    by Computer, HostIP
+| extend Unpatched = Computer in (unpatched)
+| extend Severity = iff(Unpatched, "High", "Medium"), CVE = "CVE-2026-99288"
+
+// ---------------------------------------------------------------------------
+// Rule 3 - Unexpected reboot: heartbeat gap on a Linux server       [Medium]
+// Run every 15 min, look back 2 h. Correlate with Rule 1/2 and change tickets.
+// ---------------------------------------------------------------------------
+Heartbeat
+| where TimeGenerated > ago(2h) and OSType == "Linux"
+| sort by Computer asc, TimeGenerated asc
+| extend Prev = prev(TimeGenerated), PrevComputer = prev(Computer)
+| where Computer == PrevComputer and TimeGenerated - Prev > 5m
+| project Computer, GapStart = Prev, GapEnd = TimeGenerated, GapMinutes = datetime_diff('minute', TimeGenerated, Prev)
+| extend CVE = "CVE-2026-99288", Signal = "heartbeat_gap"
+
+// ---------------------------------------------------------------------------
+// Rule 4 - Exposure status from the check script                    [Info/Medium]
+// Ingest tools/noisytcp_check.sh JSON via a custom log table NoisyTCPCheck_CL.
+// Alert on EXPOSED or UNKNOWN; MITIGATED feeds the patch tracker.
+// ---------------------------------------------------------------------------
+NoisyTCPCheck_CL
+| where TimeGenerated > ago(1d)
+| summarize arg_max(TimeGenerated, *) by host_s
+| where status_s in ("EXPOSED", "UNKNOWN", "MITIGATED")
+| project TimeGenerated, host_s, kernel_s, status_s, syncookies_s, multiqueue_s, listeners_s

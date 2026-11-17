@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" font-family="Segoe UI, Helvetica, Arial, sans-serif" role="img" aria-label="SIEM and SOAR flow for NoisyTCP: detect, enrich, decide, act with approval gates">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#57606a"/></marker>
+  </defs>
+  <rect width="1000" height="560" fill="#ffffff"/>
+  <text x="500" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#1f2328">SIEM detects, SOAR enriches and routes, people approve changes</text>
+
+  <!-- panels -->
+  <g stroke-width="1.5">
+    <rect x="15" y="60" width="225" height="400" rx="12" fill="#f6f8fa" stroke="#57606a"/>
+    <rect x="265" y="60" width="225" height="400" rx="12" fill="#f6f8fa" stroke="#57606a"/>
+    <rect x="515" y="60" width="225" height="400" rx="12" fill="#f6f8fa" stroke="#57606a"/>
+    <rect x="765" y="60" width="220" height="400" rx="12" fill="#f6f8fa" stroke="#57606a"/>
+  </g>
+  <g font-size="15" font-weight="700" fill="#1f2328" text-anchor="middle">
+    <text x="127" y="88">1. Detect (SIEM)</text>
+    <text x="377" y="88">2. Enrich (SOAR)</text>
+    <text x="627" y="88">3. Decide</text>
+    <text x="875" y="88">4. Act</text>
+  </g>
+  <g stroke="#57606a" stroke-width="2" fill="none">
+    <path d="M242 260H262" marker-end="url(#a)"/>
+    <path d="M492 260H512" marker-end="url(#a)"/>
+    <path d="M742 260H762" marker-end="url(#a)"/>
+  </g>
+
+  <g font-size="12" fill="#1f2328" text-anchor="middle">
+    <!-- detect -->
+    <rect x="30" y="105" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="127" y="131" font-weight="700">SYN-flood kernel message</text>
+    <text x="127" y="150" fill="#57606a">precursor of the trigger path</text>
+    <rect x="30" y="177" width="195" height="62" rx="8" fill="#ffebe9" stroke="#cf222e"/>
+    <text x="127" y="203" font-weight="700">Oops in tcp_v4_rcv</text>
+    <text x="127" y="222" fill="#57606a">crash signature</text>
+    <rect x="30" y="249" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="127" y="275" font-weight="700">Unexpected reboot</text>
+    <text x="127" y="294" fill="#57606a">heartbeat gap, new boot ID</text>
+    <rect x="30" y="321" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="127" y="347" font-weight="700">Mitigation drift</text>
+    <text x="127" y="366" fill="#57606a">syncookies or queues changed</text>
+    <rect x="30" y="393" width="195" height="54" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="127" y="425" font-weight="700">Scanner: vulnerable kernel</text>
+
+    <!-- enrich -->
+    <rect x="280" y="105" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="377" y="131" font-weight="700">Owner and criticality</text>
+    <text x="377" y="150" fill="#57606a">asset inventory / CMDB</text>
+    <rect x="280" y="177" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="377" y="203" font-weight="700">Kernel vs advisory</text>
+    <text x="377" y="222" fill="#57606a">package, not uname -r</text>
+    <rect x="280" y="249" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="377" y="275" font-weight="700">Read-only exposure check</text>
+    <text x="377" y="294" fill="#57606a">Ansible runs check script</text>
+    <rect x="280" y="321" width="195" height="62" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="377" y="347" font-weight="700">Internet-facing?</text>
+    <text x="377" y="366" fill="#57606a">firewall rules, NAT</text>
+    <rect x="280" y="393" width="195" height="54" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="377" y="425" font-weight="700">Source IP reputation</text>
+
+    <!-- decide -->
+    <rect x="530" y="120" width="195" height="80" rx="8" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+    <text x="627" y="148" font-weight="700">P1</text>
+    <text x="627" y="168">Crash on a host, or</text>
+    <text x="627" y="186">exposed + flood seen</text>
+    <rect x="530" y="220" width="195" height="80" rx="8" fill="#fff8c5" stroke="#9a6700" stroke-width="1.5"/>
+    <text x="627" y="248" font-weight="700">P2</text>
+    <text x="627" y="268">Exposed and unpatched,</text>
+    <text x="627" y="286">no activity yet</text>
+    <rect x="530" y="320" width="195" height="80" rx="8" fill="#ffffff" stroke="#57606a" stroke-width="1.2"/>
+    <text x="627" y="348" font-weight="700">P3</text>
+    <text x="627" y="368">Vulnerable, not exposed,</text>
+    <text x="627" y="386">or mitigation drift</text>
+
+    <!-- act -->
+    <rect x="780" y="105" width="190" height="54" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="875" y="137" font-weight="700">Ticket to owner + SLA</text>
+    <rect x="780" y="169" width="190" height="54" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="875" y="201" font-weight="700">Page on-call (P1)</text>
+    <rect x="780" y="233" width="190" height="62" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+    <text x="875" y="259" font-weight="700">Approve, then mitigate</text>
+    <text x="875" y="278" fill="#57606a">Ansible, with rollback</text>
+    <rect x="780" y="305" width="190" height="62" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+    <text x="875" y="331" font-weight="700">Approve, then block</text>
+    <text x="875" y="350" fill="#57606a">source at the edge</text>
+    <rect x="780" y="377" width="190" height="70" rx="8" fill="#ffffff" stroke="#57606a"/>
+    <text x="875" y="404" font-weight="700">Preserve crash dump</text>
+    <text x="875" y="423" fill="#57606a">re-check, patch, close</text>
+  </g>
+
+  <!-- feedback -->
+  <path d="M875 462V500H127V462" stroke="#57606a" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <text x="500" y="525" text-anchor="middle" font-size="12.5" fill="#57606a">Feedback: tune thresholds from triage outcomes; retire the CVE-specific rules after the fleet is verified patched</text>
+  <text x="500" y="546" text-anchor="middle" font-size="12" fill="#57606a">Blue boxes = human approval gate before any change to production</text>
+</svg>

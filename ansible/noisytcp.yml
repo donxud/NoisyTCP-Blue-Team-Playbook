@@ -1,0 +1,97 @@
+---
+# NoisyTCP (CVE-2026-99288): check, mitigate, roll back.
+#
+# Read-only check (default):
+#   ansible-playbook -i inventory ansible/noisytcp.yml
+# Apply a workaround (change-approved only):
+#   ansible-playbook -i inventory ansible/noisytcp.yml -e noisytcp_mitigation=syncookies_off
+#   ansible-playbook -i inventory ansible/noisytcp.yml -e noisytcp_mitigation=single_queue -e noisytcp_iface=eth0
+# Roll back after the fixed kernel is booted:
+#   ansible-playbook -i inventory ansible/noisytcp.yml -e noisytcp_mitigation=rollback
+#
+# Notes:
+# - syncookies_off removes SYN-flood protection and is per network namespace:
+#   containers with their own netns need it set inside them too.
+# - single_queue can briefly drop the link on some NICs: keep console access.
+#   It is not persistent across reboots.
+
+- name: NoisyTCP check and mitigation
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    noisytcp_mitigation: none        # none | syncookies_off | single_queue | rollback
+    noisytcp_iface: eth0
+    noisytcp_sysctl_file: /etc/sysctl.d/99-noisytcp-cve-2026-99288.conf
+
+  tasks:
+    - name: Run read-only exposure check
+      ansible.builtin.script: ../tools/noisytcp_check.sh
+      register: check
+      changed_when: false
+      failed_when: false
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ check.stdout | trim }}"
+
+    - name: Workaround 1 - disable SYN cookies (persistent)
+      when: noisytcp_mitigation == 'syncookies_off'
+      ansible.posix.sysctl:
+        name: net.ipv4.tcp_syncookies
+        value: "0"
+        sysctl_file: "{{ noisytcp_sysctl_file }}"
+        state: present
+        reload: true
+
+    - name: Workaround 2 - single RX queue
+      when: noisytcp_mitigation == 'single_queue'
+      ansible.builtin.command: "ethtool -L {{ noisytcp_iface }} combined 1"
+      register: eth
+      failed_when: false
+
+    - name: Workaround 2 - fall back to 'rx 1' on NICs with separate RX channels
+      when: noisytcp_mitigation == 'single_queue' and eth.rc != 0
+      ansible.builtin.command: "ethtool -L {{ noisytcp_iface }} rx 1"
+
+    - name: Workaround 2 - turn off RPS on every RX queue
+      when: noisytcp_mitigation == 'single_queue'
+      ansible.builtin.shell: |
+        for q in /sys/class/net/{{ noisytcp_iface }}/queues/rx-*/rps_cpus; do echo 0 > "$q"; done
+
+    - name: Workaround 2 - turn off RFS
+      when: noisytcp_mitigation == 'single_queue'
+      ansible.posix.sysctl:
+        name: net.core.rps_sock_flow_entries
+        value: "0"
+        state: present
+        sysctl_set: true
+
+    - name: Rollback - restore SYN cookies
+      when: noisytcp_mitigation == 'rollback'
+      block:
+        - name: Remove the NoisyTCP sysctl file
+          ansible.builtin.file:
+            path: "{{ noisytcp_sysctl_file }}"
+            state: absent
+        - name: Re-enable SYN cookies
+          ansible.posix.sysctl:
+            name: net.ipv4.tcp_syncookies
+            value: "1"
+            state: present
+            sysctl_set: true
+        - name: Remind about queues
+          ansible.builtin.debug:
+            msg: "RX queues and RPS return to defaults at reboot or via your network config."
+
+    - name: Re-check after any change
+      when: noisytcp_mitigation != 'none'
+      ansible.builtin.script: ../tools/noisytcp_check.sh
+      register: recheck
+      changed_when: false
+      failed_when: false
+
+    - name: Show result after change
+      when: noisytcp_mitigation != 'none'
+      ansible.builtin.debug:
+        msg: "{{ recheck.stdout | trim }}"

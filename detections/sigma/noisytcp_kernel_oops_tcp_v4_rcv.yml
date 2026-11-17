@@ -1,0 +1,33 @@
+title: Linux Kernel Oops in tcp_v4_rcv - Possible NoisyTCP Crash
+id: 6f0c2a4e-8b1d-4c7e-9a52-3e1f0d9b7c21
+status: experimental
+description: |
+  Detects a kernel oops or panic whose fault is in the TCP receive path, the
+  published crash signature of NoisyTCP (CVE-2026-99288): a NULL pointer
+  dereference with the instruction pointer in tcp_v4_rcv(), ending in
+  "Fatal exception in interrupt". The panic message itself may only survive
+  via netconsole, a serial console, pstore or kdump, so ship those to the SIEM.
+references:
+  - https://www.theregister.com/security/2026/11/16/noisytcp-bug-gives-linux-servers-a-remote-crash-problem-11-years-in-the-making/5310144
+  - https://tuxcare.com/blog/noisytcp-cve/
+author: Dong Xu
+date: 2026-11-17
+tags:
+  - attack.impact
+  - attack.t1499.004
+  - cve.2026-99288
+logsource:
+  product: linux
+  service: syslog
+detection:
+  oops:
+    - 'BUG: kernel NULL pointer dereference'
+    - 'Oops:'
+    - 'Fatal exception in interrupt'
+  tcp_path:
+    - 'tcp_v4_rcv'
+    - 'tcp_v6_rcv'
+  condition: oops and tcp_path
+falsepositives:
+  - Unrelated kernel bugs in the TCP receive path
+level: high

@@ -1,0 +1,29 @@
+title: TCP SYN Backlog Overflow on Vulnerable Linux Host - NoisyTCP Precursor
+id: 0d3b7e91-2f64-4a8c-b1e5-7c9a4f2d6e83
+status: experimental
+description: |
+  The NoisyTCP (CVE-2026-99288) crash path runs through SYN cookie handling,
+  which the kernel uses only when a listener's SYN backlog overflows. The kernel
+  logs this as "Possible SYN flooding on port N. Sending cookies." On an
+  unpatched, multi-queue host this message is the visible precursor. It also
+  fires on ordinary SYN floods and busy services, so correlate with patch status.
+references:
+  - https://tuxcare.com/blog/noisytcp-cve/
+  - https://thecybersecguru.com/exploits/noisytcp-cve-2026-99288-linux-kernel-tcp-vulnerability/
+author: Dong Xu
+date: 2026-11-17
+tags:
+  - attack.impact
+  - attack.t1499.001
+  - cve.2026-99288
+logsource:
+  product: linux
+  service: syslog
+detection:
+  keywords:
+    - 'Possible SYN flooding on port'
+  condition: keywords
+falsepositives:
+  - Legitimate traffic spikes on busy services
+  - Ordinary SYN floods unrelated to NoisyTCP
+level: medium
