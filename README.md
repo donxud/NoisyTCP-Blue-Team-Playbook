@@ -48,7 +48,7 @@ NoisyTCP is an 11-year-old race condition in the Linux kernel's TCP stack. An **
 ```bash
 git clone https://github.com/donxud/NoisyTCP-Blue-Team-Playbook.git
 cd NoisyTCP-Blue-Team-Playbook
-sudo ./tools/noisytcp_check.sh --text              # one host, read-only
+sudo bash tools/noisytcp_check.sh --text              # one host, read-only
 ansible-playbook -i <inventory> ansible/noisytcp.yml   # whole fleet, read-only
 ```
 
